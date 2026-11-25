@@ -5,11 +5,11 @@ body{background:#1b1d22;color:#ddd;font:15px/1.6 sans-serif;margin:20px}
 canvas{background:#d9c9a3;display:block;margin:8px 0}
 #log{white-space:pre-wrap;max-width:560px;color:#bbb}
 </style></head><body>
-<div>方向键走，空格原地等一步。蛤肚子里有一只小蟹，就是你，身上拴着一根红线。出去叼虫，带回壳里。</div>
+<div>方向键走，空格原地等一步，也可以一直等到下一回潮。蛤肚子里有一只小蟹，就是你，身上拴着一根红线。出去叼虫，带回壳里。</div>
 <canvas id="c" width="560" height="400"></canvas>
 <div id="st"></div>
 <div id="log"></div>
-<button id="sleep">就在这儿睡下</button> <button id="again">过下一天</button>
+<button id="wait">等到下一回潮</button> <button id="sleep">就在这儿睡下</button> <button id="again">过下一天</button>
 <script>
 const W=14,H=10,S=40,L=5,TIDE=4,DAY=90,MOUTH=12,GREY=22,SHUT=70;
 const SHORE=H-3;
@@ -125,7 +125,7 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
      t.ttl--}}
   {let x=shell.x,n=0;for(let s=step+1;s<=step+40&&n<2;s++){let d=tideAt(s);if(d){x=slide(x,d,drift(hunger+(s-step)));n++;
     g.strokeStyle='rgba(40,70,95,'+(n==1?0.8:0.4)+')';g.lineWidth=2;g.beginPath();g.ellipse(x*S+20,shell.y*S+20,15,10,0,0,7);g.stroke();
-    g.fillStyle='rgba(40,70,95,'+(n==1?1:0.6)+')';g.font='12px sans-serif';g.fillText(String(s-step),x*S+16,shell.y*S+8)}}}
+    g.fillStyle='rgba(40,70,95,'+(n==1?1:0.6)+')';g.font='12px sans-serif';g.fillText((d>0?'→':'←')+(s-step),x*S+10,shell.y*S+8)}}}
   g.lineWidth=3;g.strokeStyle=len(path)>L-1.5?'#ff2a1a':'#c8302a';g.beginPath();
   path.forEach((p,i)=>i?g.lineTo(p.x*S+20,p.y*S+20):g.moveTo(p.x*S+20,p.y*S+20));g.stroke();
   {// 壳口：越饿张得越小，快合上了就是一条缝
@@ -142,11 +142,13 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
   document.getElementById('st').textContent=`第 ${day+1} 天　线 ${len(path).toFixed(1)}/${L}　壳吃了 ${fed} 口　壳还能撑 ${Math.max(0,SHUT-hunger)} 步　第 ${step}/${DAY} 步`;
   document.getElementById('log').textContent=log.slice(-6).join('\n');
   document.getElementById('again').style.visibility=over?'visible':'hidden';
+  document.getElementById('wait').style.visibility=over?'hidden':'visible';
   document.getElementById('sleep').style.visibility=(!over&&path.length==1)?'visible':'hidden';
   document.getElementById('sleep').textContent=nightExtra()>0?'就在这儿睡下（夜长，壳多饿 '+nightExtra()+' 步）':'就在这儿睡下';
 }
 if(typeof document!='undefined'){
   addEventListener('keydown',e=>{if(e.key==' '){e.preventDefault();if(!over){log.push('你在原地等了一步。');tick()}return}const d={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(d){e.preventDefault();move(...d)}});
+  document.getElementById('wait').onclick=()=>{if(over)return;let n=0;do{tick();n++}while(!over&&!tideAt(step)&&n<20);log.push('（你等了 '+n+' 步。）');draw()};
   document.getElementById('sleep').onclick=()=>{if(over||path.length!=1)return;over=true;let ex=nightExtra();prev={x:shell.x,food:food.map(f=>({...f})),hunger:Math.min(SHUT-5,hunger+ex)};log.push('你缩进壳里，壳合上睡了。今天它吃了 '+fed+' 口。'+(ex?'天还亮着，这一夜长，它要多饿 '+ex+' 步。':''));draw()};
   document.getElementById('again').onclick=()=>{if(!over)prev={x:shell.x,food:food.map(f=>({...f})),hunger};day++;start()}   // 窝版二：窝过夜不变浅;
   {let q=new URLSearchParams(location.search);if(q.get('seed'))seed=+q.get('seed')}
