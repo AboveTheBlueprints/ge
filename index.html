@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>蛤（续版）</title>
+<style>
+body{background:#1b1d22;color:#ddd;font:15px/1.6 sans-serif;margin:20px}
+canvas{background:#d9c9a3;display:block;margin:8px 0}
+#log{white-space:pre-wrap;max-width:560px;color:#bbb}
+</style></head><body>
+<div>方向键走，空格原地等一步。蛤肚子里有一只小蟹，就是你，身上拴着一根红线。出去叼虫，带回壳里。</div>
+<canvas id="c" width="560" height="400"></canvas>
+<div id="st"></div>
+<div id="log"></div>
+<button id="sleep">就在这儿睡下</button> <button id="again">过下一天</button>
+<script>
+const W=14,H=10,S=40,L=5,TIDE=4,DAY=90,MOUTH=12,GREY=22,SHUT=70;
+const SHORE=H-3;
+let rng; function R(n){rng=(rng*16807)%2147483647;return rng%n}
+let prev=null,born=[],wake=null,splash=null,nest={},day=0,rocks,food,shell,path,carry,fed,step,hunger,log,over,seed=1;
+const key=(x,y)=>x+','+y;
+function start(){window._lastIn=undefined;window._trail=null;
+  // 搭版三：左头更稀（开局两只、新长的十只里一只），壳能撑 70 步——空手的路活得下来、吃得少。搭版：图是定的。左头是壳醒来的地方，虫稀；右头虫多，线够不着，得让潮把壳送过去
+  const mx=x=>x;   // 续版：不镜像了，昨天接到今天
+  rocks=new Set([[6,1],[6,2],[7,4],[3,2],[11,1],[12,3]].map(([x,y])=>key(mx(x),y)));
+  rng=seed*7919+13+day*1013;
+  nest={};carry=0;fed=0;step=0;hunger=0;over=false;born=[];
+  if(!prev){shell={x:mx(1),y:SHORE};food=[{x:2,y:4},{x:4,y:5}].map(f=>({x:mx(f.x),y:f.y}));for(let i=0;i<5;i++)addFood(true);
+    log=['天亮了。壳浮到岸边张开了。']}
+  else{ // 续版：壳昨晚停在哪，今天就在哪醒；虫留着，一夜每只下一只；壳夜里把身边两格内的吃了
+    shell={x:prev.x,y:SHORE};food=prev.food.map(f=>({...f}));
+    let near=food.filter(f=>Math.abs(f.x-shell.x)<=2),ate=near.length;food=food.filter(f=>Math.abs(f.x-shell.x)>2);
+    let old=food.map(f=>({...f}));old.forEach(f=>{if(R(2)||food.length>=24)return;let n0=food.length;dropNear(f.x,f.y,1);if(food.length>n0)born.push(food[food.length-1])});
+    hunger=Math.max(0,prev.hunger-MOUTH*ate);
+    log=['天亮了。壳还在昨晚睡下的那一格。'+(ate?'它夜里把身边的 '+ate+' 只吃了。':'它身边一只虫也没有，饿着醒的。'),
+         '昨天没吃完的 '+old.length+' 只，一夜下了 '+born.length+' 只小的。']}
+  path=[{...shell}];wake=prev?{x:shell.x}:null;draw();
+}
+function addFood(right){for(let t=0;t<60;t++){let x=(right||R(10))?9+R(5):R(5),y=2+R(SHORE-2);
+  if(!rocks.has(key(x,y))&&!food.some(f=>f.x==x&&f.y==y)){food.push({x,y});return}}}
+function dropNear(x,y,n){for(let r=0;r<4&&n>0;r++)for(let dy=-r;dy<=r&&n>0;dy++)for(let dx=-r;dx<=r&&n>0;dx++){let a=x+dx,b=y+dy;
+  if(a<0||b<0||a>=W||b>=SHORE||rocks.has(key(a,b))||food.some(f=>f.x==a&&f.y==b))continue;food.push({x:a,y:b});n--}}
+const drift=h=>path.length==1?1:4;   // 第七版：你在壳里，壳沉，潮推它一格；你出去了，壳轻，一冲四格   // 吃饱的壳沉，潮推不动；饿空了的壳轻，一冲老远
+const tideAt=s=>s%6==0?(Math.floor(s/6)%4<2?1:-1):0;   // 搭版二：潮 9 步→6 步，等得短
+function slide(x,d,n){for(let k=0;k<n;k++){if(k>0&&nest[x]>0)break;let nx=x+d;if(nx<0||nx>=W)break;x=nx}return x}
+const me=()=>path[path.length-1];
+const nightExtra=()=>Math.round((DAY-step)*0.6);   // 续版四：睡得早，夜就长，壳多饿
+// 两点之间的线有没有擦过石头
+function clear(a,b){let n=Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)*8);
+  for(let i=1;i<n;i++){let x=a.x+(b.x-a.x)*i/n,y=a.y+(b.y-a.y)*i/n;
+    for(let cx=Math.floor(x)-1;cx<=Math.ceil(x)+1;cx++)for(let cy=Math.floor(y)-1;cy<=Math.ceil(y)+1;cy++)
+      if(rocks.has(key(cx,cy))&&Math.hypot(x-cx,y-cy)<0.45)return false}
+  return true}
+// 线绷紧：能直拉的就直拉，绕在石头边上的点留下
+function taut(p){return [p[0],p[p.length-1]]}   // 第六版：线不再挂石头，只量你到壳的直线
+function taut_old(p){let out=[p[0]],i=0;while(i<p.length-1){let j=p.length-1;while(j>i+1&&!clear(p[i],p[j]))j--;out.push(p[j]);i=j}return out}
+const len=p=>{let t=0;for(let i=1;i<p.length;i++)t+=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);return t};
+function move(dx,dy){
+  if(over)return;
+  let m=me(),nx=m.x+dx,ny=m.y+dy;
+  if(nx<0||ny<0||nx>=W||ny>=H-1)return;
+  if(rocks.has(key(nx,ny))){log.push('石头挡住了。');tick();return}   // 续版二：撞石头也过一步，跟线绷直一样
+  if(nx==shell.x&&ny==shell.y){path=[{...shell}]}
+  else{let np=taut([...path,{x:nx,y:ny}]);
+    if(len(np)>L){log.push('线绷直了，走不动。');tick();return}
+    path=np}
+  let n=me(),fi=food.findIndex(f=>f.x==n.x&&f.y==n.y);
+  if(fi>=0&&carry<3){food.splice(fi,1);carry++;log.push('叼起一只（嘴里 '+carry+' 只）。')}
+  if(n.x==shell.x&&n.y==shell.y&&carry){fed+=carry;splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('带回壳里了。壳吃了 '+carry+' 口。');carry=0}
+  tick();
+}
+function tick(){
+  step++;hunger++;
+  if(step%6==0)addFood();
+  let d=tideAt(step);
+  if(d){
+    let moved=0,held=false,drag=0,sat=false;
+    for(let k=0,dn=drift(hunger);k<dn;k++){
+      if(k>0&&nest[shell.x]>0){sat=true;break}   // 窝版：漂到一个窝上，壳掉进去停住
+      let nx=shell.x+d;if(nx<0||nx>=W)break;
+      let ns={x:nx,y:shell.y};
+      if(path.length==1){shell=ns;path=[{...ns}];moved++;continue}
+      let np=taut([ns,...path.slice(1)]);
+      if(len(np)<=L){shell=ns;path=np;moved++;let c=me();if(c.x==ns.x&&c.y==ns.y)path=[{...ns}];continue}
+      if(np.length>2){held=true;break}   // 线挂在石头上：壳被拴住
+      // 直线没挂住：你被往壳那边拖
+      shell=ns;let c=me();
+      while(len(np)>L){let p=np[np.length-2],c2=np[np.length-1];
+        let sx=Math.sign(p.x-c2.x),sy=Math.sign(p.y-c2.y);
+        let t={x:c2.x+sx,y:c2.y+sy};if(rocks.has(key(t.x,t.y)))t=rocks.has(key(c2.x+sx,c2.y))?{x:c2.x,y:c2.y+sy}:{x:c2.x+sx,y:c2.y};
+        np=taut([...np.slice(0,-1),t]);drag++}
+      path=np;moved++;
+    }
+    let w=d>0?'涨潮，往右':'退潮，往左';
+    if(held)log.push(w+(moved?'，壳漂了 '+moved+' 格，停住了。':'。壳没动。'));
+    else log.push(w+'，壳漂了 '+moved+' 格'+(sat?'，落进一个窝里停住了。':'。'));
+    if(drag){log.push('线一绷，你被拖了 '+drag+' 格。');
+      if(path.length==1||(me().x==shell.x&&me().y==shell.y)){path=[{...shell}]}
+      if(carry){let m=me();dropNear(m.x,m.y,carry);log.push('一拖，嘴里的 '+carry+' 只掉了。');carry=0}}
+  }
+  {let m=me();if(path.length>1&&m.x==shell.x&&m.y==shell.y){path=[{...shell}]}
+   if(path.length==1&&carry){fed+=carry;splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('壳漂到你脚下，一口吞了 '+carry+' 只。');carry=0}}
+  if(hunger>SHUT){over=true;prev=null;log.push('壳饿得合上了。今天它吃了 '+fed+' 口。')}
+  else if(step>=DAY){over=true;prev={x:shell.x,food:food.map(f=>({...f})),hunger};log.push('天黑了。今天它吃了 '+fed+' 口。')}
+  draw();
+}
+let cv=typeof document!='undefined'&&document.getElementById('c'),g=cv&&cv.getContext('2d');
+function draw(){
+  if(!g)return;
+  g.clearRect(0,0,cv.width,cv.height);
+  for(let x=0;x<W;x++){g.fillStyle='#c4b48c';g.fillRect(x*S,SHORE*S,S,S);g.fillStyle='#7fa6b8';g.fillRect(x*S,(H-2)*S,S,S);g.fillStyle='#4d7488';g.fillRect(x*S,(H-1)*S,S,S)}
+  rocks.forEach(k=>{let[x,y]=k.split(',').map(Number);g.fillStyle='#6b665c';g.beginPath();g.arc(x*S+20,y*S+20,17,0,7);g.fill()});
+  for(let x in nest){let v=nest[x];if(v<=0)continue;g.fillStyle='rgba(90,65,40,'+Math.min(0.85,0.25+0.15*v)+')';g.beginPath();g.ellipse(+x*S+20,SHORE*S+24,Math.min(30,20+4*v),Math.min(13,7+2*v),0,0,7);g.fill()}
+  if(false&&splash&&splash.t>0){g.fillStyle='rgba(120,90,55,'+(0.35*splash.t)+')';for(let i=0;i<7;i++){let a=Math.PI*(0.1+0.8*i/6),r=26+10*(3-splash.t);g.beginPath();g.arc(splash.x*S+20+Math.cos(a)*r*(i%2?1:-1),SHORE*S+24-Math.sin(a)*r*0.5,3,0,7);g.fill()}splash.t--}
+  food.forEach(f=>{let b=step<12&&born.some(q=>q.x==f.x&&q.y==f.y);g.fillStyle=b?'#7c6':'#3a5';b?g.fillRect(f.x*S+17,f.y*S+17,6,6):g.fillRect(f.x*S+15,f.y*S+15,10,10)});
+  if(wake&&step<12){g.fillStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.font='12px sans-serif';g.fillText('昨晚睡这儿',wake.x*S-8,SHORE*S-4);
+    g.strokeStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.setLineDash([3,3]);g.strokeRect((wake.x-2)*S,0,5*S,SHORE*S);g.setLineDash([])}
+  // 沙上的潮表：往后两回潮，壳没被拴住的话会漂到哪
+  // 第十版：你迈出壳、回到壳那一步，圈从原来的地方划过去，沙上留一道痕（三步后淡掉）
+  {let gs=[],x=shell.x;for(let s=step+1;s<=step+40&&gs.length<2;s++){let d=tideAt(s);if(d){x=slide(x,d,drift(0));gs.push(x)}}
+   let inS=path.length==1;
+   if(window._lastIn!==undefined&&window._lastIn!==inS&&window._lastGs){window._trail={from:window._lastGs.slice(),to:gs.slice(),ttl:3}}
+   window._lastIn=inS;window._lastGs=gs;
+   let t=null;if(t&&t.ttl>0){   // 窝版二：沙痕拿掉，免得跟窝混
+for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])continue;
+      let y=shell.y*S+33,a=0.25*t.ttl;g.strokeStyle='rgba(110,90,60,'+a+')';g.lineWidth=3;g.setLineDash([5,4]);g.beginPath();g.moveTo(t.from[i]*S+20,y);g.lineTo(t.to[i]*S+20,y);g.stroke();g.setLineDash([]);
+      g.fillStyle='rgba(110,90,60,'+a+')';g.beginPath();g.ellipse(t.from[i]*S+20,shell.y*S+20,13,8,0,0,7);g.fill()}
+     t.ttl--}}
+  {let x=shell.x,n=0;for(let s=step+1;s<=step+40&&n<2;s++){let d=tideAt(s);if(d){x=slide(x,d,drift(hunger+(s-step)));n++;
+    g.strokeStyle='rgba(40,70,95,'+(n==1?0.8:0.4)+')';g.lineWidth=2;g.beginPath();g.ellipse(x*S+20,shell.y*S+20,15,10,0,0,7);g.stroke();
+    g.fillStyle='rgba(40,70,95,'+(n==1?1:0.6)+')';g.font='12px sans-serif';g.fillText(String(s-step),x*S+16,shell.y*S+8)}}}
+  g.lineWidth=3;g.strokeStyle=len(path)>L-1.5?'#ff2a1a':'#c8302a';g.beginPath();
+  path.forEach((p,i)=>i?g.lineTo(p.x*S+20,p.y*S+20):g.moveTo(p.x*S+20,p.y*S+20));g.stroke();
+  {// 壳口：越饿张得越小，快合上了就是一条缝
+   let o=Math.max(0,1-hunger/SHUT),cx=shell.x*S+20,cy=shell.y*S+20+[0,30,18,8,0][drift(0)],gap=1+o*9;
+   g.fillStyle='#efe9d6';g.beginPath();g.ellipse(cx,cy-gap/2,17,7,0,Math.PI,0);g.fill();
+   g.beginPath();g.ellipse(cx,cy+gap/2,17,7,0,0,Math.PI);g.fill();
+   g.fillStyle='#5a3a2a';g.fillRect(cx-14,cy-gap/2,28,gap);
+   // 吃饱的壳沉，坐进浅水里，被水盖住一截
+   g.fillStyle='rgba(127,166,184,0.8)';g.fillRect(shell.x*S-4,(H-2)*S,S+8,S);
+   if(drift(hunger)<=2){g.strokeStyle='rgba(255,255,255,0.7)';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,(H-2)*S+3,24,4,0,0,7);g.stroke()}}
+  let m=me(),my=m.y*S+20+(path.length==1?[0,30,18,8,0][drift(0)]:0);g.fillStyle='#d33';g.beginPath();g.arc(m.x*S+20,my,path.length==1?5:8,0,7);g.fill();
+  for(let i=0;i<carry;i++){g.fillStyle='#3a5';g.fillRect(m.x*S+6+i*10,m.y*S+4,8,8)}
+  if(carry>=3){g.strokeStyle='#3a5';g.lineWidth=2;g.beginPath();g.arc(m.x*S+20,m.y*S+20,12,0,7);g.stroke()}
+  document.getElementById('st').textContent=`第 ${day+1} 天　线 ${len(path).toFixed(1)}/${L}　壳吃了 ${fed} 口　壳还能撑 ${Math.max(0,SHUT-hunger)} 步　第 ${step}/${DAY} 步`;
+  document.getElementById('log').textContent=log.slice(-6).join('\n');
+  document.getElementById('again').style.visibility=over?'visible':'hidden';
+  document.getElementById('sleep').style.visibility=(!over&&path.length==1)?'visible':'hidden';
+  document.getElementById('sleep').textContent=nightExtra()>0?'就在这儿睡下（夜长，壳多饿 '+nightExtra()+' 步）':'就在这儿睡下';
+}
+if(typeof document!='undefined'){
+  addEventListener('keydown',e=>{if(e.key==' '){e.preventDefault();if(!over){log.push('你在原地等了一步。');tick()}return}const d={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(d){e.preventDefault();move(...d)}});
+  document.getElementById('sleep').onclick=()=>{if(over||path.length!=1)return;over=true;let ex=nightExtra();prev={x:shell.x,food:food.map(f=>({...f})),hunger:Math.min(SHUT-5,hunger+ex)};log.push('你缩进壳里，壳合上睡了。今天它吃了 '+fed+' 口。'+(ex?'天还亮着，这一夜长，它要多饿 '+ex+' 步。':''));draw()};
+  document.getElementById('again').onclick=()=>{if(!over)prev={x:shell.x,food:food.map(f=>({...f})),hunger};day++;start()}   // 窝版二：窝过夜不变浅;
+  {let q=new URLSearchParams(location.search);if(q.get('seed'))seed=+q.get('seed')}
+  start();
+}
+</script></body></html>
