@@ -60,7 +60,7 @@ const len=p=>{let t=0;for(let i=1;i<p.length;i++)t+=Math.hypot(p[i].x-p[i-1].x,p
 function move(dx,dy){
   if(over)return;
   let m=me(),nx=m.x+dx,ny=m.y+dy;
-  if(nx<0||ny<0||nx>=W||ny>=H-1)return;
+  if(nx<0||ny<0||nx>=W||ny>SHORE)return;   // 续版八补：不能走进水里（48 说红点在水面附近，认错位置）
   if(rocks.has(key(nx,ny))){log.push('石头挡住了。');tick();return}   // 续版二：撞石头也过一步，跟线绷直一样
   if(nx==shell.x&&ny==shell.y){path=[{...shell}]}
   else{let np=taut([...path,{x:nx,y:ny}]);
@@ -69,7 +69,7 @@ function move(dx,dy){
   let n=me(),fi=food.findIndex(f=>f.x==n.x&&f.y==n.y);
   if(fi>=0&&carry<3){food.splice(fi,1);carry++;log.push('叼起一只（嘴里 '+carry+' 只）。')}
   if(n.x==shell.x&&n.y==shell.y&&carry&&hunger<FULL){log.push('壳饱着，不张嘴。嘴里还叼着 '+carry+' 只。')}
-  else if(n.x==shell.x&&n.y==shell.y&&carry){fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();log.push('壳长大了一圈。线放长了，现在能走 '+L+' 格。')}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('带回壳里了。壳吃了 '+carry+' 口。');carry=0}
+  else if(n.x==shell.x&&n.y==shell.y&&carry){fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();window._grow='壳长大了一圈。线放长了，现在能走 '+L+' 格。'}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('带回壳里了。壳吃了 '+carry+' 口。');carry=0}
   tick();
 }
 function tick(){
@@ -103,9 +103,10 @@ function tick(){
   }
   {let m=me();if(path.length>1&&m.x==shell.x&&m.y==shell.y){path=[{...shell}]}
    if(path.length==1&&carry&&hunger<FULL){if(!window._fullSaid){log.push('壳饱着，不张嘴。嘴里还叼着 '+carry+' 只。');window._fullSaid=1}}
-   else if(path.length==1&&carry){window._fullSaid=0;fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();log.push('壳长大了一圈。线放长了，现在能走 '+L+' 格。')}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('壳漂到你脚下，一口吞了 '+carry+' 只。');carry=0}}
+   else if(path.length==1&&carry){window._fullSaid=0;fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();window._grow='壳长大了一圈。线放长了，现在能走 '+L+' 格。'}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('壳漂到你脚下，一口吞了 '+carry+' 只。');carry=0}}
   if(hunger>SHUT){over=true;prev=null;keepGrown=[0,0,5,12][size()];if(size())log.push('壳缩小了一圈。');log.push('壳饿得合上了。今天它吃了 '+fed+' 口。')}
   else if(step>=DAY){over=true;prev={x:shell.x,food:food.map(f=>({...f})),hunger,grown};log.push('天黑了。今天它吃了 '+fed+' 口。')}
+  if(window._grow){log.push(window._grow);window._grow=null}   // 续版八补：长大那句排在'吃了'后面
   draw();
 }
 let cv=typeof document!='undefined'&&document.getElementById('c'),g=cv&&cv.getContext('2d');
@@ -137,12 +138,12 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
   path.forEach((p,i)=>i?g.lineTo(p.x*S+20,p.y*S+20):g.moveTo(p.x*S+20,p.y*S+20));g.stroke();
   {// 壳口：越饿张得越小，快合上了就是一条缝
    let o=Math.max(0,1-hunger/SHUT),cx=shell.x*S+20,cy=shell.y*S+20+[0,30,18,8,0][drift(0)],gap=1+o*9;
-   g.fillStyle='#efe9d6';g.beginPath();g.ellipse(cx,cy-gap/2,17+3*size(),7+size(),0,Math.PI,0);g.fill();
-   g.beginPath();g.ellipse(cx,cy+gap/2,17+3*size(),7+size(),0,0,Math.PI);g.fill();
+   g.fillStyle='#efe9d6';g.beginPath();g.ellipse(cx,cy-gap/2,17+6*size(),7+2*size(),0,Math.PI,0);g.fill();
+   g.beginPath();g.ellipse(cx,cy+gap/2,17+6*size(),7+2*size(),0,0,Math.PI);g.fill();
    g.fillStyle='#5a3a2a';g.fillRect(cx-14,cy-gap/2,28,gap);
    // 吃饱的壳沉，坐进浅水里，被水盖住一截
    g.fillStyle='rgba(127,166,184,0.8)';g.fillRect(shell.x*S-4,(H-2)*S,S+8,S);
-   if(drift(hunger)<=2){g.strokeStyle='rgba(255,255,255,0.7)';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,(H-2)*S+3,24,4,0,0,7);g.stroke()}}
+   if(drift(hunger)<=2){g.strokeStyle='rgba(255,255,255,0.7)';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,(H-2)*S+3,24+6*size(),4+size(),0,0,7);g.stroke()}}
   let m=me(),my=m.y*S+20+(path.length==1?[0,30,18,8,0][drift(0)]:0);g.fillStyle='#d33';g.beginPath();g.arc(m.x*S+20,my,path.length==1?5:8,0,7);g.fill();
   for(let i=0;i<carry;i++){g.fillStyle='#3a5';g.fillRect(m.x*S+6+i*10,m.y*S+4,8,8)}
   if(carry>=3){g.strokeStyle='#3a5';g.lineWidth=2;g.beginPath();g.arc(m.x*S+20,m.y*S+20,12,0,7);g.stroke()}
