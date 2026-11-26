@@ -133,6 +133,9 @@ function draw(){
   food.forEach(f=>{let b=step<12&&born.some(q=>q.x==f.x&&q.y==f.y);g.fillStyle=b?'#7c6':'#3a5';b?g.fillRect(f.x*S+15,f.y*S+15,10,10):g.fillRect(f.x*S+13,f.y*S+13,14,14)});
   if(wake&&step<12){g.fillStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.font='12px sans-serif';g.fillText('昨晚睡这儿',wake.x*S-8,SHORE*S-4);
     g.strokeStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.setLineDash([3,3]);g.strokeRect((wake.x-2)*S,0,5*S,SHORE*S);g.setLineDash([])}
+  if(!over&&step>=12){let a=Math.min(0.85,0.3+(step-12)*0.012);g.strokeStyle='rgba(150,60,40,'+a+')';g.setLineDash([5,4]);g.lineWidth=1.5;g.strokeRect((shell.x-2)*S+1,1,5*S-2,SHORE*S-2);g.setLineDash([]);
+    g.fillStyle='rgba(150,60,40,'+a+')';g.font='bold 13px sans-serif';g.fillText('壳睡这儿，夜里吃掉圈着的',Math.max(2,(shell.x-2)*S+4),14);
+    food.forEach(f=>{if(Math.abs(f.x-shell.x)<=2){g.strokeStyle='rgba(150,60,40,'+(a+0.2)+')';g.lineWidth=2;g.beginPath();g.arc(f.x*S+20,f.y*S+20,13,0,7);g.stroke()}})}   // 续版十四：下午起，壳此刻要是睡下、夜里会吃哪一条先画出来（64、65 到第二早才懂虚线框是夜食范围；拇指甲 4：变之前看得见）
   // 沙上的潮表：往后两回潮，壳没被拴住的话会漂到哪
   // 第十版：你迈出壳、回到壳那一步，圈从原来的地方划过去，沙上留一道痕（三步后淡掉）
   {let gs=[],x=shell.x;for(let s=step+1;s<=step+40&&gs.length<2;s++){let d=tideAt(s);if(d){x=slide(x,d,drift(0));gs.push(x)}}
@@ -166,7 +169,7 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
   document.getElementById('again').style.visibility=over?'visible':'hidden';
   document.getElementById('wait').style.visibility=over?'hidden':'visible';
   document.getElementById('sleep').style.visibility=(!over&&path.length==1)?'visible':'hidden';
-  document.getElementById('sleep').textContent=nightExtra()>0?'就在这儿睡下（夜长，壳多饿 '+nightExtra()+' 步）':'就在这儿睡下';
+  {let ne=food.filter(f=>Math.abs(f.x-shell.x)<=2).length;let parts=[];if(nightExtra()>0)parts.push('夜长，壳多饿 '+nightExtra()+' 步');parts.push(ne?'壳夜里吃掉圈里 '+ne+' 只':'圈里没虫，壳饿着睡');document.getElementById('sleep').textContent='就在这儿睡下（'+parts.join('；')+'）'}   // 续版十五：代价挂在下决定的钮上（67 看见框不知道'谁吃、哪些'）
 }
 if(typeof document!='undefined'){
   addEventListener('keydown',e=>{if(e.key==' '){e.preventDefault();if(!over){log.push('你在原地等了一步。');tick()}return}const d={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(d){e.preventDefault();move(...d)}});
