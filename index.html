@@ -17,7 +17,7 @@ const size=()=>grown<5?0:grown<12?1:grown<20?2:3;   // 续版八：第一圈 5 �
 let keepGrown=0,MIR=0;const mx=x=>MIR?W-1-x:x;   // 续版十五：三天一局，换一片岸＝左右换边
 function roundEnd(){if(day%3!=2)return;let p=pairs(food).length;log.push('—— 三天过完了。沙上还留着 '+p+' 对虫，壳是第 '+(size()+1)+' 圈大。可以接着过下一天；也可以换一片岸再来三天（石头和虫换到另一边）。');document.getElementById('fresh').style.display=''}
    // 续版八：饿合上一回不清零，只缩一圈
-const W=14,H=10,S=40,TIDE=4,DAY=90,MOUTH=12,GREY=22,SHUT=70;
+const W=14,H=10,S=40,TIDE=4,DAY=90,MOUTH=12,GREY=22,SHUT=70;const STARVE=30;   // 续v23：饿合上的壳第二天醒来只剩 40 步，岸原样留着
 const SHORE=H-3;
 let rng; function R(n){rng=(rng*16807)%2147483647;return rng%n}
 let prev=null,born=[],wake=null,splash=null,nest={},day=0,rocks,food,shell,path,carry,fed,step,hunger,log,over,seed=1;
@@ -34,11 +34,11 @@ function start(){window._lastIn=undefined;window._trail=null;
     log=['天亮了。壳浮到岸边张开了。']}
   else{ // 续版：壳昨晚停在哪，今天就在哪醒；虫留着，一夜每只下一只；壳夜里把身边两格内的吃了
     shell={x:prev.x,y:SHORE};food=prev.food.map(f=>({...f}));
-    let near=food.filter(f=>Math.abs(f.x-shell.x)<=2),ate=near.length;food=food.filter(f=>Math.abs(f.x-shell.x)>2);
+    let near=prev.shut?[]:food.filter(f=>Math.abs(f.x-shell.x)<=2),ate=near.length;food=food.filter(f=>prev.shut||Math.abs(f.x-shell.x)>2);
     let old=food.map(f=>({...f}));let pr=pairs(old),pairedN=pr.length*2;pr.forEach(([i,j])=>{let f=old[i];if(food.length>=16)return;let n0=food.length;dropNear(f.x,f.y,1);if(food.length>n0)born.push(food[food.length-1])});
     let washed=0;if(food.length<2){let fx=shell.x<7?11:2;[[fx,3],[fx,4]].forEach(([x,y])=>{if(!rocks.has(key(x,y))&&!food.some(f=>f.x==x&&f.y==y)){food.push({x,y});washed++}})}   // 续版十三：沙上一只不剩（或剩一只），夜潮在远头冲上来一对——死图能重来，可还得自己护住这一对
     hunger=Math.max(0,prev.hunger-MOUTH*ate);
-    log=['天亮了。壳还在昨晚睡下的那一格。'+(ate?'它夜里把身边的 '+ate+' 只吃了。':'它身边一只虫也没有，饿着醒的。'),
+    log=[(prev.shut?'天亮了。壳昨天饿合上的地方，它还在那一格；夜里合着，一口没吃，只能撑 '+(SHUT-STARVE)+' 步。沙上的虫照你昨天留下的样子。':'天亮了。壳还在昨晚睡下的那一格。'+(ate?'它夜里把身边的 '+ate+' 只吃了。':'它身边一只虫也没有，饿着醒的。')),
          '昨天没吃完的 '+old.length+' 只里，挨着的 '+pairedN+' 只一夜下了 '+born.length+' 只小的'+(old.length-pairedN?'；落单的 '+(old.length-pairedN)+' 只没生。':'。')+(born.length<pr.length?'沙上挤满了，再多下不了。':'')+(washed?'夜潮在远处冲上来一对。':'')]}
   path=[{...shell}];wake=prev?{x:shell.x}:null;draw();
 }
@@ -117,7 +117,7 @@ function tick(){
   {let m=me();if(path.length>1&&m.x==shell.x&&m.y==shell.y){path=[{...shell}]}
    if(path.length==1&&carry&&hunger<FULL){if(!window._fullSaid){log.push('壳饱着，不张嘴。嘴里还叼着 '+carry+' 只。');window._fullSaid=1}}
    else if(path.length==1&&carry){window._fullSaid=0;fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();window._grow='壳长大了一圈。线放长了，现在能走 '+L+' 格。'}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('壳漂到你脚下，一口吞了 '+carry+' 只。');carry=0}}
-  if(hunger>=SHUT){over=true;prev=null;keepGrown=[0,0,5,12][size()];if(size()){let g0=grown;grown=keepGrown;let nl=5+size();grown=g0;log.push('壳缩小了一圈，明天线只剩 '+nl+' 格。')}log.push('壳饿得合上了。今天它吃了 '+fed+' 口。');roundEnd()}
+  if(hunger>=SHUT){over=true;keepGrown=[0,0,5,12][size()];prev={x:shell.x,food:food.map(f=>({...f})),hunger:STARVE,grown:keepGrown,shut:1};if(size()){let g0=grown;grown=keepGrown;let nl=5+size();grown=g0;log.push('壳缩小了一圈，明天线只剩 '+nl+' 格。')}log.push('壳饿得合上了。今天它吃了 '+fed+' 口。明天它就在这一格醒，沙上的虫原样留着。');roundEnd()}
   else if(step>=DAY){over=true;prev={x:shell.x,food:food.map(f=>({...f})),hunger,grown};log.push('天黑了。今天它吃了 '+fed+' 口。');roundEnd()}
   if(window._grow){log.push(window._grow);window._grow=null}   // 续版八补：长大那句排在'吃了'后面
   draw();
