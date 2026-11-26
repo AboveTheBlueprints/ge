@@ -9,7 +9,7 @@ canvas{background:#d9c9a3;display:block;margin:8px 0}
 <canvas id="c" width="560" height="400"></canvas>
 <div id="st"></div>
 <div id="log"></div>
-<button id="spit">吐下嘴里的</button> <button id="wait">等到下一回潮</button> <button id="sleep">就在这儿睡下</button> <button id="again">过下一天</button> <button id="fresh" style="display:none">换一片岸，再来三天</button>
+<button id="spit">吐下嘴里的</button> <button id="wait">等到下一回潮</button> <button id="waitR">等往右的潮</button> <button id="waitL">等往左的潮</button> <button id="sleep">就在这儿睡下</button> <button id="again">过下一天</button> <button id="fresh" style="display:none">换一片岸，再来三天</button>
 <script>
 const FULL=-999;   // 续版七：拿掉续版六的不张嘴（开了含着等的近路）
 let grown=0;   // 续版七：壳一共吃过几口，三天累计；每 8 口长大一圈，线放长一格（最多三圈）
@@ -174,6 +174,9 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
 }
 if(typeof document!='undefined'){
   addEventListener('keydown',e=>{if(e.key==' '){e.preventDefault();if(!over){log.push('你在原地等了一步。');tick()}return}const d={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(d){e.preventDefault();move(...d)}});
+  const waitDir=dir=>{if(over)return;let n=0;do{tick();n++}while(!over&&!(tideAt(step)*dir>0)&&n<30);log.push('（你等了 '+n+' 步。）');draw()};
+  document.getElementById('waitR').onclick=()=>waitDir(1);document.getElementById('waitL').onclick=()=>waitDir(-1);
+
   document.getElementById('wait').onclick=()=>{if(over)return;let n=0;do{tick();n++}while(!over&&!tideAt(step)&&n<20);log.push('（你等了 '+n+' 步。）');draw()};
   document.getElementById('sleep').onclick=()=>{if(over||path.length!=1)return;over=true;let ex=nightExtra();prev={x:shell.x,food:food.map(f=>({...f})),hunger:Math.min(SHUT-5,hunger+ex),grown};log.push('你缩进壳里，壳合上睡了。今天它吃了 '+fed+' 口。'+(ex?'天还亮着，这一夜长，它要多饿 '+ex+' 步。':'')+(hunger+ex>SHUT-5?'它饿得快合不上了，夜里硬撑着，明早只剩 5 步（圈里有虫的话，它夜里吃了能缓过来些）。':''));roundEnd();draw()};
   document.getElementById('spit').onclick=()=>{if(over||!carry)return;let m=me();let n0=food.length;dropNear(m.x,m.y,carry);log.push('你把嘴里的 '+carry+' 只吐在这儿。');carry=0;tick()};
