@@ -35,9 +35,10 @@ function start(){window._lastIn=undefined;window._trail=null;
     shell={x:prev.x,y:SHORE};food=prev.food.map(f=>({...f}));
     let near=food.filter(f=>Math.abs(f.x-shell.x)<=2),ate=near.length;food=food.filter(f=>Math.abs(f.x-shell.x)>2);
     let old=food.map(f=>({...f}));let pr=pairs(old),pairedN=pr.length*2;pr.forEach(([i,j])=>{let f=old[i];if(food.length>=16)return;let n0=food.length;dropNear(f.x,f.y,1);if(food.length>n0)born.push(food[food.length-1])});
+    let washed=0;if(food.length<2){let fx=shell.x<7?11:2;[[fx,3],[fx,4]].forEach(([x,y])=>{if(!rocks.has(key(x,y))&&!food.some(f=>f.x==x&&f.y==y)){food.push({x,y});washed++}})}   // 续版十三：沙上一只不剩（或剩一只），夜潮在远头冲上来一对——死图能重来，可还得自己护住这一对
     hunger=Math.max(0,prev.hunger-MOUTH*ate);
     log=['天亮了。壳还在昨晚睡下的那一格。'+(ate?'它夜里把身边的 '+ate+' 只吃了。':'它身边一只虫也没有，饿着醒的。'),
-         '昨天没吃完的 '+old.length+' 只里，挨着的 '+pairedN+' 只一夜下了 '+born.length+' 只小的'+(old.length-pairedN?'；落单的 '+(old.length-pairedN)+' 只没下。':'。')+(born.length<pr.length?'沙上挤满了，再多下不了。':'')]}
+         '昨天没吃完的 '+old.length+' 只里，挨着的 '+pairedN+' 只一夜下了 '+born.length+' 只小的'+(old.length-pairedN?'；落单的 '+(old.length-pairedN)+' 只没生。':'。')+(born.length<pr.length?'沙上挤满了，再多下不了。':'')+(washed?'夜潮在远处冲上来一对。':'')]}
   path=[{...shell}];wake=prev?{x:shell.x}:null;draw();
 }
 function crawl(){   // 续版十一：落单的往最近一只挪一格（不进石头、不进水、不叠）
@@ -115,7 +116,7 @@ function tick(){
   {let m=me();if(path.length>1&&m.x==shell.x&&m.y==shell.y){path=[{...shell}]}
    if(path.length==1&&carry&&hunger<FULL){if(!window._fullSaid){log.push('壳饱着，不张嘴。嘴里还叼着 '+carry+' 只。');window._fullSaid=1}}
    else if(path.length==1&&carry){window._fullSaid=0;fed+=carry;{let b=size();grown+=carry;if(size()>b){L=5+size();window._grow='壳长大了一圈。线放长了，现在能走 '+L+' 格。'}}splash={x:shell.x,t:3};hunger=Math.max(0,hunger-MOUTH*carry);log.push('壳漂到你脚下，一口吞了 '+carry+' 只。');carry=0}}
-  if(hunger>SHUT){over=true;prev=null;keepGrown=[0,0,5,12][size()];if(size())log.push('壳缩小了一圈。');log.push('壳饿得合上了。今天它吃了 '+fed+' 口。')}
+  if(hunger>=SHUT){over=true;prev=null;keepGrown=[0,0,5,12][size()];if(size())log.push('壳缩小了一圈。');log.push('壳饿得合上了。今天它吃了 '+fed+' 口。')}
   else if(step>=DAY){over=true;prev={x:shell.x,food:food.map(f=>({...f})),hunger,grown};log.push('天黑了。今天它吃了 '+fed+' 口。')}
   if(window._grow){log.push(window._grow);window._grow=null}   // 续版八补：长大那句排在'吃了'后面
   draw();
@@ -128,8 +129,8 @@ function draw(){
   rocks.forEach(k=>{let[x,y]=k.split(',').map(Number);g.fillStyle='#6b665c';g.beginPath();g.arc(x*S+20,y*S+20,17,0,7);g.fill()});
   for(let x in nest){let v=nest[x];if(v<=0)continue;g.fillStyle='rgba(90,65,40,'+Math.min(0.85,0.25+0.15*v)+')';g.beginPath();g.ellipse(+x*S+20,SHORE*S+24,Math.min(30,20+4*v),Math.min(13,7+2*v),0,0,7);g.fill()}
   if(false&&splash&&splash.t>0){g.fillStyle='rgba(120,90,55,'+(0.35*splash.t)+')';for(let i=0;i<7;i++){let a=Math.PI*(0.1+0.8*i/6),r=26+10*(3-splash.t);g.beginPath();g.arc(splash.x*S+20+Math.cos(a)*r*(i%2?1:-1),SHORE*S+24-Math.sin(a)*r*0.5,3,0,7);g.fill()}splash.t--}
-  g.strokeStyle='rgba(40,110,60,0.55)';g.lineWidth=2;pairs(food).forEach(([i,j])=>{let f=food[i],q=food[j];let mx=(f.x+q.x)/2*S+20,my=(f.y+q.y)/2*S+20;g.fillStyle='rgba(230,240,200,0.9)';g.beginPath();g.arc(mx,my,3,0,7);g.fill()});   // 续版十二：一对中间一个小白点，不连线（11 被读成一条长虫）
-  food.forEach(f=>{let b=step<12&&born.some(q=>q.x==f.x&&q.y==f.y);g.fillStyle=b?'#7c6':'#3a5';b?g.fillRect(f.x*S+17,f.y*S+17,6,6):g.fillRect(f.x*S+15,f.y*S+15,10,10)});
+  g.strokeStyle='rgba(40,110,60,0.55)';g.lineWidth=2;pairs(food).forEach(([i,j])=>{let f=food[i],q=food[j];let mx=(f.x+q.x)/2*S+20,my=(f.y+q.y)/2*S+20;g.fillStyle='#fff';g.strokeStyle='#253';g.lineWidth=1.5;g.beginPath();g.arc(mx,my,5,0,7);g.fill();g.stroke()});   // 续版十二：一对中间一个小白点，不连线（11 被读成一条长虫）
+  food.forEach(f=>{let b=step<12&&born.some(q=>q.x==f.x&&q.y==f.y);g.fillStyle=b?'#7c6':'#3a5';b?g.fillRect(f.x*S+15,f.y*S+15,10,10):g.fillRect(f.x*S+13,f.y*S+13,14,14)});
   if(wake&&step<12){g.fillStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.font='12px sans-serif';g.fillText('昨晚睡这儿',wake.x*S-8,SHORE*S-4);
     g.strokeStyle='rgba(60,45,30,'+(0.5-step*0.04)+')';g.setLineDash([3,3]);g.strokeRect((wake.x-2)*S,0,5*S,SHORE*S);g.setLineDash([])}
   // 沙上的潮表：往后两回潮，壳没被拴住的话会漂到哪
@@ -157,6 +158,7 @@ for(let i=0;i<Math.min(t.from.length,t.to.length);i++){if(t.from[i]==t.to[i])con
    g.fillStyle='rgba(127,166,184,0.8)';g.fillRect(shell.x*S-4,(H-2)*S,S+8,S);
    if(drift(hunger)<=2){g.strokeStyle='rgba(255,255,255,0.7)';g.lineWidth=1.5;g.beginPath();g.ellipse(cx,(H-2)*S+3,24+6*size(),4+size(),0,0,7);g.stroke()}}
   let m=me(),my=m.y*S+20+(path.length==1?[0,30,18,8,0][drift(0)]:0);g.fillStyle='#d33';g.beginPath();g.arc(m.x*S+20,my,path.length==1?5:8,0,7);g.fill();
+  if(path.length>1&&food.some(f=>f.x==m.x&&f.y==m.y)){g.fillStyle='#3a5';g.fillRect(m.x*S+2,m.y*S+26,12,12);g.strokeStyle='#fff';g.lineWidth=2;g.strokeRect(m.x*S+2,m.y*S+26,12,12)}   // 续版十三：脚下有虫，露个角（61 漏看被红点盖住的掉虫）
   for(let i=0;i<carry;i++){g.fillStyle='#3a5';g.fillRect(m.x*S+28,m.y*S+5+i*10,8,8)}
   if(carry>=3){g.strokeStyle='#3a5';g.lineWidth=2;g.beginPath();g.arc(m.x*S+20,m.y*S+20,12,0,7);g.stroke()}
   document.getElementById('st').textContent=`第 ${day+1} 天　线 ${len(path).toFixed(1)}/${L}　壳吃了 ${fed} 口　壳还能撑 ${Math.max(0,SHUT-hunger)} 步　第 ${step}/${DAY} 步`;
