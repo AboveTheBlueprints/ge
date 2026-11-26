@@ -53,7 +53,7 @@ function addFood(right){for(let t=0;t<60;t++){let x=mx((right||R(10))?9+R(5):R(5
 function dropNear(x,y,n){for(let r=0;r<4&&n>0;r++)for(let dy=-r;dy<=r&&n>0;dy++)for(let dx=-r;dx<=r&&n>0;dx++){let a=x+dx,b=y+dy;
   if(a<0||b<0||a>=W||b>=SHORE||rocks.has(key(a,b))||food.some(f=>f.x==a&&f.y==b))continue;food.push({x:a,y:b});n--}}
 const drift=h=>path.length==1?1:4;   // 第七版：你在壳里，壳沉，潮推它一格；你出去了，壳轻，一冲四格   // 吃饱的壳沉，潮推不动；饿空了的壳轻，一冲老远
-const tideAt=s=>(MIR?-1:1)*(s%6==0?(Math.floor(s/6)%4<2?1:-1):0);   // 搭版二：潮 9 步→6 步，等得短
+const tideAt=s=>(MIR?-1:1)*(s%6==0?(Math.floor(s/6)%2<1?1:-1):0);   // 续版十七：潮序右右左左→右左右左，要的那头最多等 6 步   // 搭版二：潮 9 步→6 步，等得短
 function slide(x,d,n){for(let k=0;k<n;k++){if(k>0&&nest[x]>0)break;let nx=x+d;if(nx<0||nx>=W)break;x=nx}return x}
 const me=()=>path[path.length-1];
 let L=5;
